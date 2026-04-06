@@ -1,0 +1,12 @@
+model_name: roberta-base
+task_name: sst2
+mode: lora
+rank: 8
+lora_alpha: 16
+learning_rate: 0.0002
+batch_size: 16
+eval_batch_size: 32
+epochs: 3
+max_length: 128
+output_dir: outputs
+seed: 42

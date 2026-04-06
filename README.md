@@ -26,11 +26,11 @@ LoRA reduces the number of trainable parameters by representing the update of a 
 ```bash
 project/
 ├── src/
-│   ├── lora.py           # LoRA layer and injection logic
+│   ├── lora.py           # LoRA logic
 │   ├── data.py           # GLUE loading and tokenization
-│   ├── train.py          # Full fine-tuning and LoRA training loop
-│   ├── evaluate.py       # Metrics, rank sweep, plots, SVD analysis
-│   └── config.py         # Reads parameters from configs/train.yaml
+│   ├── train.py          # train experiments
+│   ├── evaluate.py       # compare, sweep, analyze, plot
+│   └── config.py         # config loader
 │
 ├── configs/
 │   └── train.yaml        # Training configuration
