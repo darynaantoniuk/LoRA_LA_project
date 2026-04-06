@@ -1,10 +1,77 @@
-# LoRA_LA_project
-Linear Algebra project implementing Low-Rank Adaptation (LoRA) for fine-tuning RoBERTa. Explores the mathematical underpinnings of parameter-efficient training via low-rank matrix decompositions, rank-performance trade-offs, and SVD analysis on the GLUE benchmark.
+# Fine-Tuning Large Language Models Using LoRA
 
+**Authors**: Maryna Ohinska, Daryna Antoniuk, Olha Kaplish
+
+Linear Algebra project focused on implementing Low-Rank Adaptation (LoRA) for fine-tuning RoBERTa. The project explores the mathematical foundations of parameter-efficient training through low-rank matrix decomposition, rank-performance trade-offs, and singular value analysis on GLUE tasks.
+
+The main aim is to analyse and implement efficient fine-tuning of a large language model using the LoRA method, with an emphasis on how low-rank matrix decompositions reduce the number of trainable parameters while preserving model performance. Model quality is evaluated on tasks from the GLUE benchmark, including sentiment classification, textual entailment, sentence similarity, and linguistic acceptability.
+
+## Project tasks
+1. Study the architecture of large language models (Transformers, self-attention).
+2. Analyse standard full fine-tuning as a baseline.
+3. Implement LoRA fine-tuning on RoBERTa.
+4. Evaluate performance against full fine-tuning on GLUE.
+
+## Supported tasks
+- SST-2
+- MRPC
+- CoLA
+- MNL
+
+## Method overview
+LoRA reduces the number of trainable parameters by representing the update of a weight matrix as a low-rank decomposition \( \Delta W = BA \). In this project, LoRA is applied to the query and value projection matrices in RoBERTa attention layers, while the original pretrained weights remain frozen.
+
+## Project structure
+
+```bash
+project/
+├── src/
+│   ├── lora.py           # LoRA layer and injection logic
+│   ├── data.py           # GLUE loading and tokenization
+│   ├── train.py          # Full fine-tuning and LoRA training loop
+│   ├── evaluate.py       # Metrics, rank sweep, plots, SVD analysis
+│   └── config.py         # Reads parameters from configs/train.yaml
+│
+├── configs/
+│   └── train.yaml        # Training configuration
+│
+├── scripts/
+│   └── run_train.sh      # Helper script for running experiments
+│
+├── notebooks/
+│   └── rank_sweep.ipynb  # Exploratory analysis and plots
+│
+├── requirements.txt
+├── LICENSE
+├── README.md
+└── .gitignore
+```
 
 ## Installation
+
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
+
+## Example usage
+
+```bash
+python src/train.py --task sst2 --mode full
+python src/train.py --task sst2 --mode lora --rank 8
+python src/evaluate.py --task sst2 --rank_sweep
+```
+
+## Evaluation
+The project compares LoRA and full fine-tuning in terms of:
+- accuracy on GLUE tasks,
+- number of trainable parameters,
+- GPU memory usage,
+- throughput.
+
+## Planned experiments
+- Full fine-tuning baseline on RoBERTa-base.
+- LoRA fine-tuning with ranks $\(r \in \{4, 8, 16, 32\}\)$.
+- Rank-sensitivity analysis.
+- SVD analysis of weight update spectra.
