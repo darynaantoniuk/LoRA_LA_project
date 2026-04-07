@@ -2,6 +2,12 @@
 
 **Authors**: Maryna Ohinska, Daryna Antoniuk, Olha Kaplish
 
+## Videos
+- [Maryna Ohinska](https://www.youtube.com/watch?v=U9YXA9MURvw&t=11s)
+- Daryna Antoniuk
+- Olha Kaplish
+
+
 Linear Algebra project focused on implementing Low-Rank Adaptation (LoRA) for fine-tuning RoBERTa. The project explores the mathematical foundations of parameter-efficient training through low-rank matrix decomposition, rank-performance trade-offs, and singular value analysis on GLUE tasks.
 
 The main aim is to analyse and implement efficient fine-tuning of a large language model using the LoRA method, with an emphasis on how low-rank matrix decompositions reduce the number of trainable parameters while preserving model performance. Model quality is evaluated on tasks from the GLUE benchmark, including sentiment classification, textual entailment, sentence similarity, and linguistic acceptability.
