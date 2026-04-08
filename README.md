@@ -1,10 +1,10 @@
 # Fine-Tuning Large Language Models Using LoRA
 
-**Authors**: Maryna Ohinska, Daryna Antoniuk, Olha Kaplish
+**Authors**: Maryna Ohinska, Daryna Antoniuk, Olha Kaplysh
 
 ## Videos
 - [Maryna Ohinska](https://www.youtube.com/watch?v=U9YXA9MURvw&t=11s)
-- Daryna Antoniuk
+- [Daryna Antoniuk](https://youtu.be/YGIefP0QRbI)
 - [Olha Kaplysh](https://youtu.be/cY6yw76rKeA?si=DNGYE5uHM5STgnHp)
 
 
