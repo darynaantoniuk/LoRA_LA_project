@@ -5,7 +5,7 @@
 ## Videos
 - [Maryna Ohinska](https://www.youtube.com/watch?v=U9YXA9MURvw&t=11s)
 - Daryna Antoniuk
-- [Olha Kaplish](https://youtu.be/cY6yw76rKeA?si=DNGYE5uHM5STgnHp)
+- [Olha Kaplysh](https://youtu.be/cY6yw76rKeA?si=DNGYE5uHM5STgnHp)
 
 
 Linear Algebra project focused on implementing Low-Rank Adaptation (LoRA) for fine-tuning RoBERTa. The project explores the mathematical foundations of parameter-efficient training through low-rank matrix decomposition, rank-performance trade-offs, and singular value analysis on GLUE tasks.
