@@ -1,0 +1,14 @@
+{
+  "checkpoint_path": "/Users/mohinska/Desktop/LoRA_LA_project/outputs/mrpc_full_r8/checkpoint-690",
+  "task": "mrpc",
+  "mode": "full",
+  "rank": 8,
+  "accuracy": 0.6838235294117647,
+  "precision": 0.6838235294117647,
+  "recall": 1.0,
+  "f1": 0.8122270742358079,
+  "trainable_params": 124647170,
+  "trainable_percent": 100.0,
+  "gpu_memory_mb": null,
+  "throughput_samples_per_sec": 58.329560600091526
+}

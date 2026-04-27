@@ -1,8 +1,10 @@
 import argparse
+import inspect
 import os
 import random
 import numpy as np
 import torch
+from sklearn.metrics import precision_recall_fscore_support
 
 from transformers import (
     RobertaTokenizer,
@@ -27,7 +29,16 @@ def compute_metrics(eval_pred):
     logits, labels = eval_pred
     preds = np.argmax(logits, axis=-1)
     acc = (preds == labels).mean().item()
-    return {"accuracy": acc}
+    average = "binary" if len(np.unique(labels)) <= 2 else "macro"
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        labels, preds, average=average, zero_division=0
+    )
+    return {
+        "accuracy": acc,
+        "precision": float(precision),
+        "recall": float(recall),
+        "f1": float(f1),
+    }
 
 
 def build_model(model_name: str, task_name: str, mode: str, rank: int, lora_alpha: int):
@@ -39,6 +50,49 @@ def build_model(model_name: str, task_name: str, mode: str, rank: int, lora_alph
         freeze_non_lora_params(model)
 
     return model
+
+
+def make_training_args(cfg):
+    kwargs = {
+        "output_dir": f"{cfg.output_dir}/{cfg.task_name}_{cfg.mode}_r{cfg.rank}",
+        "learning_rate": cfg.learning_rate,
+        "num_train_epochs": cfg.epochs,
+        "per_device_train_batch_size": cfg.batch_size,
+        "per_device_eval_batch_size": cfg.eval_batch_size,
+        "save_strategy": "epoch",
+        "logging_strategy": "steps",
+        "logging_steps": 50,
+        "load_best_model_at_end": False,
+        "report_to": "none",
+        "fp16": torch.cuda.is_available(),
+        "seed": cfg.seed,
+    }
+
+    params = inspect.signature(TrainingArguments.__init__).parameters
+    if "evaluation_strategy" in params:
+        kwargs["evaluation_strategy"] = "epoch"
+    elif "eval_strategy" in params:
+        kwargs["eval_strategy"] = "epoch"
+
+    return TrainingArguments(**kwargs)
+
+
+def make_trainer(model, training_args, train_dataset, eval_dataset, tokenizer):
+    kwargs = {
+        "model": model,
+        "args": training_args,
+        "train_dataset": train_dataset,
+        "eval_dataset": eval_dataset,
+        "compute_metrics": compute_metrics,
+    }
+
+    params = inspect.signature(Trainer.__init__).parameters
+    if "tokenizer" in params:
+        kwargs["tokenizer"] = tokenizer
+    elif "processing_class" in params:
+        kwargs["processing_class"] = tokenizer
+
+    return Trainer(**kwargs)
 
 
 def main():
@@ -80,29 +134,14 @@ def main():
     stats = count_parameters(model)
     print("Parameter statistics:", stats)
 
-    training_args = TrainingArguments(
-        output_dir=f"{cfg.output_dir}/{cfg.task_name}_{cfg.mode}_r{cfg.rank}",
-        learning_rate=cfg.learning_rate,
-        num_train_epochs=cfg.epochs,
-        per_device_train_batch_size=cfg.batch_size,
-        per_device_eval_batch_size=cfg.eval_batch_size,
-        evaluation_strategy="epoch",
-        save_strategy="epoch",
-        logging_strategy="steps",
-        logging_steps=50,
-        load_best_model_at_end=False,
-        report_to="none",
-        fp16=torch.cuda.is_available(),
-        seed=cfg.seed,
-    )
+    training_args = make_training_args(cfg)
 
-    trainer = Trainer(
+    trainer = make_trainer(
         model=model,
-        args=training_args,
+        training_args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         tokenizer=tokenizer,
-        compute_metrics=compute_metrics,
     )
 
     trainer.train()
