@@ -1,0 +1,14 @@
+{
+  "checkpoint_path": "/Users/mohinska/Desktop/LoRA_LA_project/outputs/mrpc_lora_r32/checkpoint-460",
+  "task": "mrpc",
+  "mode": "lora",
+  "rank": 32,
+  "accuracy": 0.8186274509803921,
+  "precision": 0.8957528957528957,
+  "recall": 0.8315412186379928,
+  "f1": 0.862453531598513,
+  "trainable_params": 1179648,
+  "trainable_percent": 0.9375171515503158,
+  "gpu_memory_mb": null,
+  "throughput_samples_per_sec": 59.1693244886638
+}

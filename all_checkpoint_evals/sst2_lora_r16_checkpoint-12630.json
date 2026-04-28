@@ -1,0 +1,14 @@
+{
+  "checkpoint_path": "/Users/mohinska/Desktop/LoRA_LA_project/outputs/sst2_lora_r16/checkpoint-12630",
+  "task": "sst2",
+  "mode": "lora",
+  "rank": 16,
+  "accuracy": 0.9357798165137615,
+  "precision": 0.9349775784753364,
+  "recall": 0.9391891891891891,
+  "f1": 0.9370786516853933,
+  "trainable_params": 589824,
+  "trainable_percent": 0.47096627055740414,
+  "gpu_memory_mb": null,
+  "throughput_samples_per_sec": 56.926208773697844
+}

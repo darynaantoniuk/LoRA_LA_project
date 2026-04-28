@@ -1,0 +1,14 @@
+{
+  "checkpoint_path": "/Users/mohinska/Desktop/LoRA_LA_project/outputs/cola_full_r8/checkpoint-1605",
+  "task": "cola",
+  "mode": "full",
+  "rank": 8,
+  "accuracy": 0.6912751677852349,
+  "precision": 0.6912751677852349,
+  "recall": 1.0,
+  "f1": 0.8174603174603174,
+  "trainable_params": 124647170,
+  "trainable_percent": 100.0,
+  "gpu_memory_mb": null,
+  "throughput_samples_per_sec": 52.39394082424667
+}
