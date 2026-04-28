@@ -5,6 +5,7 @@ import time
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+import torch
 
 from transformers import RobertaTokenizer, RobertaForSequenceClassification, Trainer, TrainingArguments
 
@@ -30,7 +31,7 @@ def build_eval_trainer(model, tokenizer, eval_dataset, output_dir="outputs/eval_
         model=model,
         args=args,
         eval_dataset=eval_dataset,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         compute_metrics=compute_metrics,
     )
 
@@ -115,26 +116,62 @@ def plot_rank_sweep(results, save_dir="outputs"):
     plt.close()
 
 
-def svd_analysis_of_lora(model, save_dir="outputs"):
+def implicit_simultaneous_power_iteration(B, A, scale, k, num_iters=50, tol=1e-6):
+    d_out, r = B.shape
+    r_A, d_in = A.shape
+    assert r == r_A, "Inner dimensions of LoRA matrices must match."
+    
+    V = torch.randn(d_in, k, device=B.device, dtype=B.dtype)
+    V, _ = torch.linalg.qr(V)
+    
+    prev_s = None
+    
+    for _ in range(num_iters):
+        AV = A @ V
+        U = scale * (B @ AV)
+        U, _ = torch.linalg.qr(U)
+        
+        BtU = B.T @ U
+        V = scale * (A.T @ BtU)
+        V, _ = torch.linalg.qr(V)
+
+        s = torch.diag(U.T @ (scale * (B @ (A @ V))))
+        s = torch.abs(s)
+        
+        if prev_s is not None and torch.max(torch.abs(s - prev_s)) < tol:
+            break
+        prev_s = s
+        
+    return torch.sort(s, descending=True).values
+
+def svd_analysis_of_lora(model, save_dir="outputs", num_iters=50):
     os.makedirs(save_dir, exist_ok=True)
 
     singular_values = []
-    for module in model.modules():
-        if hasattr(module, "lora_A") and hasattr(module, "lora_B"):
-            delta = module.scale * (module.lora_B @ module.lora_A)
-            s = torch.linalg.svdvals(delta).detach().cpu().numpy()
-            singular_values.append(s)
+    
+    with torch.no_grad():
+        for module in model.modules():
+            if hasattr(module, "lora_A") and hasattr(module, "lora_B"):
+                B = module.lora_B
+                A = module.lora_A
+                scale = module.scale
+                
+                r = A.shape[0] 
+                
+                s = implicit_simultaneous_power_iteration(B, A, scale, k=r, num_iters=num_iters)
+                singular_values.append(s.cpu().numpy())
 
     if not singular_values:
         return
 
     plt.figure(figsize=(8, 4))
     for i, s in enumerate(singular_values[:5]):
-        plt.plot(s, label=f"Layer {i}")
+        plt.plot(s, marker='o', markersize=4, label=f"Layer {i}")
+        
     plt.yscale("log")
     plt.xlabel("Index")
     plt.ylabel("Singular value")
-    plt.title("SVD Spectrum of LoRA Updates")
+    plt.title("SVD Spectrum of LoRA Updates (Orthogonal Iteration)")
     plt.legend()
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, "svd_spectrum.png"), dpi=150)
