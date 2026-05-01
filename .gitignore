@@ -1,4 +1,9 @@
 /venv
 __pycache__
+__pycache__/
+*.py[cod]
 .DS_Store
+/.cache
 /outputs
+/plots
+/all_checkpoint_evals

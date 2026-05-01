@@ -33,27 +33,21 @@ LoRA reduces the number of trainable parameters by representing the update of a 
 ## Project structure
 
 ```bash
-project/
-├── src/
-│   ├── lora.py           # LoRA logic
-│   ├── data.py           # GLUE loading and tokenization
-│   ├── train.py          # train experiments
-│   ├── evaluate.py       # evaluate an already fine-tuned checkpoint
-│   └── config.py         # config loader
-│
+LoRA_LA_project/
 ├── configs/
 │   └── train.yaml
-│
 ├── scripts/
-│   ├── run_train.sh
-│   └── run_report_training.py
-│
-├── notebooks/
-│   └── rank_sweep.ipynb  # Exploratory analysis and plots
-│
+│   ├── run_finetuning.py
+│   └── evaluate_checkpoints.sh
+├── src/
+│   ├── config.py         # config loader
+│   ├── data.py           # GLUE loading and tokenization
+│   ├── evaluate.py       # evaluate an already fine-tuned checkpoint
+│   ├── lora.py           # LoRA logic
+│   └── train.py          # train experiments
+├── README.md
 ├── requirements.txt
 ├── LICENSE
-├── README.md
 └── .gitignore
 ```
 
@@ -73,6 +67,18 @@ python src/train.py --task sst2 --mode lora --rank 8
 python src/evaluate.py --task sst2 --checkpoint_path outputs/sst2_full_r8/checkpoint-12630
 ```
 
+Run a reusable batch of fine-tuning jobs:
+
+```bash
+python scripts/run_finetuning.py --tasks sst2 mrpc --rank-sweep 4 8 16 32
+```
+
+Evaluate all saved checkpoints:
+
+```bash
+bash scripts/evaluate_checkpoints.sh
+```
+
 ## Evaluation
 
 The project compares LoRA and full fine-tuning in terms of:
@@ -87,5 +93,4 @@ The project compares LoRA and full fine-tuning in terms of:
 - Full fine-tuning baseline on RoBERTa-base.
 - LoRA fine-tuning with ranks `r in {4, 8, 16, 32}`.
 - Rank-sensitivity analysis.
-- SVD analysis of weight update spectra.
-
+- SVD-based LoRA initialization with `pretraining_mode: truncated_svd`.
