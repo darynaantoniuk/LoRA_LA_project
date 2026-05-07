@@ -46,7 +46,7 @@ def truncated_svd_power_iteration(
         tol (float): Sign-invariant convergence tolerance.
         seed (Optional[int]): Optional random seed for deterministic vectors.
     Returns:
-        Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: U, S, and V where W ≈ U diag(S) V.T.
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: U, S, and V where W = U diag(S) V.T.
     Algorithm:
         1. Copy W into a stable floating-point residual matrix.
         2. Estimate each dominant right singular vector through R.T R power iteration.

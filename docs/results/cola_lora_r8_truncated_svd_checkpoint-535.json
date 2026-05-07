@@ -1,0 +1,14 @@
+{
+  "checkpoint_path": "/Users/mohinska/Desktop/LoRA_LA_project/outputs/cola_lora_r8_truncated_svd/checkpoint-535",
+  "task": "cola",
+  "mode": "lora",
+  "rank": 8,
+  "accuracy": 0.7919463087248322,
+  "precision": 0.7923433874709976,
+  "recall": 0.9472954230235784,
+  "f1": 0.8629185091598232,
+  "trainable_params": 294912,
+  "trainable_percent": 0.2360389672392365,
+  "gpu_memory_mb": null,
+  "throughput_samples_per_sec": 23.612292663663226
+}

@@ -4,6 +4,7 @@
 import argparse
 import datetime as dt
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -16,6 +17,7 @@ import yaml
 DEFAULT_TASKS = ("sst2", "mrpc", "cola", "mnli")
 DEFAULT_RANK_SWEEP = (4, 8, 16, 32)
 DEFAULT_MODELS = ("roberta-base",)
+DEFAULT_PRETRAINING_MODES = ("standard",)
 
 
 def parse_args() -> argparse.Namespace:
@@ -37,6 +39,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rank-sweep", nargs="+", type=int, default=list(DEFAULT_RANK_SWEEP))
     parser.add_argument("--models", nargs="+", default=list(DEFAULT_MODELS))
     parser.add_argument(
+        "--pretraining-modes",
+        nargs="+",
+        choices=["none", "standard", "truncated_svd"],
+        default=list(DEFAULT_PRETRAINING_MODES),
+        help=(
+            "LoRA initialization modes to run when mode=lora. "
+            "Use 'standard' for regular LoRA and 'truncated_svd' for LoRA + SVD."
+        ),
+    )
+    parser.add_argument(
         "--output-log",
         type=str,
         default="outputs/finetuning_runs.jsonl",
@@ -52,16 +64,22 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Print planned commands without running them.",
     )
+    parser.add_argument(
+        "--skip-full",
+        action="store_true",
+        help="Do not include full fine-tuning baseline jobs.",
+    )
     return parser.parse_args()
 
 
-def load_completed_jobs(log_path: Path) -> set[tuple[str, str, str, int]]:
+def load_completed_jobs(log_path: Path) -> set[tuple[str, str, str, int, str]]:
     """
     Load successful jobs from a JSONL run log.
     Args:
         log_path (Path): Path to the JSONL run log.
     Returns:
-        set[tuple[str, str, str, int]]: Completed model, task, mode, and rank tuples.
+        set[tuple[str, str, str, int, str]]: Completed model, task, mode, rank, and
+            LoRA pretraining mode tuples.
     Algorithm:
         1. Return an empty set when no log exists.
         2. Read each JSON line and keep records with ok status.
@@ -84,6 +102,7 @@ def load_completed_jobs(log_path: Path) -> set[tuple[str, str, str, int]]:
                         record["task"],
                         record["mode"],
                         record["rank"],
+                        record.get("pretraining_mode", "none"),
                     )
                 )
     return completed
@@ -93,6 +112,8 @@ def build_jobs(
     tasks: list[str],
     rank_sweep: tuple[int, ...],
     models: list[str],
+    pretraining_modes: list[str],
+    include_full: bool,
 ) -> list[dict[str, Any]]:
     """
     Build the fine-tuning job list.
@@ -100,29 +121,46 @@ def build_jobs(
         tasks (list[str]): GLUE task names to train on.
         rank_sweep (tuple[int, ...]): LoRA ranks to evaluate.
         models (list[str]): Hugging Face model names to fine-tune.
+        pretraining_modes (list[str]): LoRA initialization variants to train.
+        include_full (bool): Whether to include full fine-tuning baseline jobs.
     Returns:
         list[dict[str, Any]]: Unique job dictionaries.
     Algorithm:
-        1. Add one full fine-tuning job for each model and task.
-        2. Add LoRA jobs for rank 8 and every rank in the sweep.
+        1. Optionally add one full fine-tuning job for each model and task.
+        2. Add LoRA jobs for every requested rank and pretraining mode.
         3. Deduplicate jobs while preserving order.
     """
     jobs: list[dict[str, Any]] = []
-    seen: set[tuple[str, str, str, int]] = set()
+    seen: set[tuple[str, str, str, int, str]] = set()
 
-    def add_job(model_name: str, task: str, mode: str, rank: int) -> None:
-        key = (model_name, task, mode, rank)
+    def add_job(
+        model_name: str,
+        task: str,
+        mode: str,
+        rank: int,
+        pretraining_mode: str,
+    ) -> None:
+        key = (model_name, task, mode, rank, pretraining_mode)
         if key in seen:
             return
         seen.add(key)
-        jobs.append({"model": model_name, "task": task, "mode": mode, "rank": rank})
+        jobs.append(
+            {
+                "model": model_name,
+                "task": task,
+                "mode": mode,
+                "rank": rank,
+                "pretraining_mode": pretraining_mode,
+            }
+        )
 
     for model_name in models:
         for task in tasks:
-            add_job(model_name, task, "full", 0)
-            add_job(model_name, task, "lora", 8)
+            if include_full:
+                add_job(model_name, task, "full", 0, "none")
             for rank in rank_sweep:
-                add_job(model_name, task, "lora", rank)
+                for pretraining_mode in pretraining_modes:
+                    add_job(model_name, task, "lora", rank, pretraining_mode)
     return jobs
 
 
@@ -176,7 +214,14 @@ def run_job(job: dict[str, Any], temp_config_path: Path) -> dict[str, Any]:
         job["mode"],
     ]
     if job["mode"] == "lora":
-        command.extend(["--rank", str(job["rank"])])
+        command.extend(
+            [
+                "--rank",
+                str(job["rank"]),
+                "--pretraining-mode",
+                job["pretraining_mode"],
+            ]
+        )
 
     started_at = dt.datetime.now(dt.timezone.utc)
     completed = subprocess.run(command, check=False)
@@ -189,8 +234,49 @@ def run_job(job: dict[str, Any], temp_config_path: Path) -> dict[str, Any]:
         "task": job["task"],
         "mode": job["mode"],
         "rank": job["rank"],
+        "pretraining_mode": job["pretraining_mode"],
         "status": "ok" if completed.returncode == 0 else "failed",
         "return_code": completed.returncode,
+        "command": " ".join(command),
+    }
+
+
+def make_interrupted_record(
+    job: dict[str, Any],
+    temp_config_path: Path,
+) -> dict[str, Any]:
+    """Build a JSONL record for a job interrupted by the user."""
+    command = [
+        sys.executable,
+        "src/train.py",
+        "--config",
+        str(temp_config_path),
+        "--task",
+        job["task"],
+        "--mode",
+        job["mode"],
+    ]
+    if job["mode"] == "lora":
+        command.extend(
+            [
+                "--rank",
+                str(job["rank"]),
+                "--pretraining-mode",
+                job["pretraining_mode"],
+            ]
+        )
+
+    interrupted_at = dt.datetime.now(dt.timezone.utc).isoformat()
+    return {
+        "timestamp_utc": interrupted_at,
+        "finished_utc": interrupted_at,
+        "model": job["model"],
+        "task": job["task"],
+        "mode": job["mode"],
+        "rank": job["rank"],
+        "pretraining_mode": job["pretraining_mode"],
+        "status": "interrupted",
+        "return_code": 130,
         "command": " ".join(command),
     }
 
@@ -219,22 +305,39 @@ def main() -> None:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     completed_jobs = load_completed_jobs(log_path)
 
-    jobs = build_jobs(args.tasks, tuple(args.rank_sweep), args.models)
+    jobs = build_jobs(
+        args.tasks,
+        tuple(args.rank_sweep),
+        args.models,
+        args.pretraining_modes,
+        include_full=not args.skip_full,
+    )
     pending_jobs = [
         job
         for job in jobs
-        if (job["model"], job["task"], job["mode"], job["rank"]) not in completed_jobs
+        if (
+            job["model"],
+            job["task"],
+            job["mode"],
+            job["rank"],
+            job["pretraining_mode"],
+        )
+        not in completed_jobs
     ]
 
     print(f"Total planned jobs: {len(jobs)}")
     print(f"Already completed: {len(jobs) - len(pending_jobs)}")
     print(f"Pending now: {len(pending_jobs)}")
+    print(f"Python executable: {sys.executable}")
 
     if args.dry_run:
         for job in pending_jobs:
             command = f"python src/train.py --task {job['task']} --mode {job['mode']}"
             if job["mode"] == "lora":
-                command += f" --rank {job['rank']}"
+                command += (
+                    f" --rank {job['rank']}"
+                    f" --pretraining-mode {job['pretraining_mode']}"
+                )
             print(f"[dry-run] model={job['model']} -> {command}")
         return
 
@@ -242,11 +345,19 @@ def main() -> None:
     for index, job in enumerate(pending_jobs, start=1):
         print(
             f"\n[{index}/{len(pending_jobs)}] model={job['model']} "
-            f"task={job['task']} mode={job['mode']} rank={job['rank']}"
+            f"task={job['task']} mode={job['mode']} rank={job['rank']} "
+            f"pretraining={job['pretraining_mode']}"
         )
         temp_config_path = write_temp_config(base_config, job["model"])
         try:
-            record = run_job(job, temp_config_path)
+            try:
+                record = run_job(job, temp_config_path)
+            except KeyboardInterrupt:
+                record = make_interrupted_record(job, temp_config_path)
+                with log_path.open("a", encoding="utf-8") as file:
+                    file.write(json.dumps(record) + "\n")
+                print("\nInterrupted by user. Logged the current job and stopping cleanly.")
+                raise SystemExit(130) from None
         finally:
             temp_config_path.unlink(missing_ok=True)
 

@@ -7,6 +7,7 @@
 - [Maryna Ohinska](https://www.youtube.com/watch?v=U9YXA9MURvw&t=11s)
 - [Daryna Antoniuk](https://youtu.be/YGIefP0QRbI)
 - [Olha Kaplysh](https://youtu.be/cY6yw76rKeA?si=DNGYE5uHM5STgnHp)
+- [Final Presentation Video](https://youtu.be/jcMsZVtYziM)
 
 Linear Algebra project focused on implementing Low-Rank Adaptation (LoRA) for fine-tuning RoBERTa. The project explores the mathematical foundations of parameter-efficient training through low-rank matrix decomposition, rank-performance trade-offs, and singular value analysis on GLUE tasks.
 
@@ -206,3 +207,67 @@ The project compares LoRA and full fine-tuning in terms of:
 - LoRA fine-tuning with ranks `r in {4, 8, 16, 32}`.
 - Rank-sensitivity analysis.
 - SVD-based LoRA initialization with `pretraining_mode: truncated_svd`.
+
+## Checkpoint aggregation and result export
+
+Use the aggregation script to collect per-checkpoint evaluation artifacts into flat CSV files, best-checkpoint summaries, pivot tables, and optional throughput plots:
+
+```bash
+python3 scripts/aggregate_checkpoint_evals.py
+```
+
+### Script options
+
+- `--eval-dir EVAL_DIR`
+  - Directory containing per-checkpoint evaluation JSON files.
+  - Default: `outputs/all_checkpoint_evals`
+- `--outputs-root OUTPUTS_ROOT`
+  - Root outputs directory containing run folders and checkpoint folders.
+  - Default: `outputs`
+- `--out-dir OUT_DIR`
+  - Directory where CSV summaries and optional plots are written.
+  - Default: same as `--eval-dir`
+- `--best-by {accuracy,f1,throughput_samples_per_sec}`
+  - Metric used to choose the best checkpoint for each run directory.
+  - Default: `accuracy`
+- `--plot-throughput`
+  - Generate a throughput-vs-rank line plot for one selected dataset.
+- `--plot-task PLOT_TASK`
+  - Dataset name used for the throughput-vs-rank plot.
+  - Examples: `cola`, `mrpc`, `sst2`
+  - Required when `--plot-throughput` is used
+
+### Generated files
+
+By default, the script writes these files into `outputs/all_checkpoint_evals`:
+
+- `checkpoint_eval_rows.csv`
+  - One row per checkpoint artifact.
+- `best_checkpoint_per_run_by_<metric>.csv`
+  - One selected best checkpoint per run directory.
+- `pivot_accuracy.csv`
+  - Pivot-style summary table for accuracy.
+- `pivot_f1.csv`
+  - Pivot-style summary table for F1.
+- `pivot_throughput_samples_per_sec.csv`
+  - Pivot-style summary table for throughput.
+
+### Throughput plot example
+
+To generate a line plot with:
+
+- x-axis = LoRA rank
+- y-axis = throughput in samples/sec
+- one line per LoRA pretraining mode
+
+run:
+
+```bash
+python3 scripts/aggregate_checkpoint_evals.py --plot-throughput --plot-task cola
+```
+
+This writes a file such as:
+
+- `plot_throughput_vs_rank_cola.png`
+
+The plot includes only LoRA runs for the selected dataset. If the available artifacts contain two modes, for example `standard` and `truncated_svd`, then the figure will contain two lines. If additional LoRA modes are added later, they will appear automatically.
